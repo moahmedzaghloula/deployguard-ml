@@ -1,0 +1,6 @@
+-r requirements.in
+
+black
+ruff
+pytest
+pytest-cov
