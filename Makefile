@@ -3,8 +3,9 @@ PIP := $(PYTHON) -m pip
 BLACK := .venv/bin/black
 RUFF := .venv/bin/ruff
 PYTEST := .venv/bin/pytest
+PYTHONPATH := src
 
-.PHONY: help venv install-dev format format-check lint test check
+.PHONY: help venv install-dev format format-check lint test check data validate-data eda data-pipeline
 
 help:
 	@printf "Available targets:\n"
@@ -15,6 +16,10 @@ help:
 	@printf "  lint          Run Ruff lint checks\n"
 	@printf "  test          Run Pytest\n"
 	@printf "  check         Run all non-destructive quality checks\n"
+	@printf "  data          Generate the deterministic deployment dataset\n"
+	@printf "  validate-data Validate the generated dataset contract\n"
+	@printf "  eda           Run EDA and save figures\n"
+	@printf "  data-pipeline Generate, validate, and analyze the dataset\n"
 
 venv:
 	test -d .venv || python3 -m venv .venv
@@ -35,3 +40,14 @@ test:
 	$(PYTEST)
 
 check: format-check lint test
+
+data:
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m deployguard.generate_data
+
+validate-data:
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m deployguard.validate_data
+
+eda:
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m deployguard.eda
+
+data-pipeline: data validate-data eda
