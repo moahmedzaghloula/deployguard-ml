@@ -1,0 +1,13 @@
+**
+
+!Dockerfile
+!.dockerignore
+!requirements-runtime.lock.txt
+
+!src
+!src/deployguard
+!src/deployguard/**
+
+!artifacts
+!artifacts/deployguard_model.joblib
+!artifacts/metadata.json
