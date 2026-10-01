@@ -93,3 +93,50 @@ docker-smoke:
 docker-inspect:
 	@docker image inspect "$(IMAGE)" --format 'Image={{.Id}} User={{.Config.User}}'
 	@docker inspect "$(CONTAINER)" --format 'Health={{.State.Health.Status}} ReadOnly={{.HostConfig.ReadonlyRootfs}} CapDrop={{json .HostConfig.CapDrop}} SecurityOpt={{json .HostConfig.SecurityOpt}} Memory={{.HostConfig.Memory}} NanoCpus={{.HostConfig.NanoCpus}}'
+
+HADOLINT_IMAGE ?= hadolint/hadolint:v2.15.1-debian
+
+TRIVY_IMAGE ?= aquasec/trivy:0.74.0
+TRIVY_CACHE_VOLUME ?= deployguard-trivy-cache
+
+install: venv
+	$(PIP) install --requirement requirements.lock.txt
+
+coverage:
+	PYTHONPATH=$(PYTHONPATH) $(PYTEST) --cov=deployguard --cov-report=term-missing --cov-report=xml:coverage.xml
+
+
+security: docker-build
+	@mkdir -p reports/ci
+	docker run --rm -i $(HADOLINT_IMAGE) < Dockerfile
+	docker run --rm -v "$(CURDIR):/work:ro" $(TRIVY_IMAGE) fs --scanners secret --no-progress --exit-code 1 --skip-dirs /work/.git --skip-dirs /work/.venv /work
+	docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$(TRIVY_CACHE_VOLUME):/root/.cache/trivy" $(TRIVY_IMAGE) image --scanners vuln --no-progress --exit-code 0 --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL $(IMAGE) > reports/ci/trivy-full.txt
+	@echo "Full Trivy report: reports/ci/trivy-full.txt"
+	@sed -n '1,40p' reports/ci/trivy-full.txt
+	docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$(TRIVY_CACHE_VOLUME):/root/.cache/trivy" $(TRIVY_IMAGE) image --scanners vuln --no-progress --ignore-unfixed --exit-code 1 --severity HIGH,CRITICAL $(IMAGE)
+	@echo "Container security checks: PASS"
+
+.PHONY: verify
+
+verify: format-check lint coverage data validate-data train model-check security
+	@set -eu; \
+	CONTAINER_NAME="$(CONTAINER)"; \
+	docker rm -f "$$CONTAINER_NAME" >/dev/null 2>&1 || true; \
+	cleanup() { \
+		docker rm -f "$$CONTAINER_NAME" >/dev/null 2>&1 || true; \
+	}; \
+	trap cleanup EXIT INT TERM; \
+	make docker-run; \
+	status="starting"; \
+	for attempt in $$(seq 1 30); do \
+		status="$$(docker inspect --format '{{.State.Health.Status}}' "$$CONTAINER_NAME")"; \
+		echo "Container health: $$status"; \
+		if [ "$$status" = "healthy" ]; then \
+			break; \
+		fi; \
+		sleep 1; \
+	done; \
+	test "$$status" = "healthy"; \
+	make docker-smoke; \
+	make docker-inspect; \
+	echo "DeployGuard ML verification: PASS"

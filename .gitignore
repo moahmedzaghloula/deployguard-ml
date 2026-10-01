@@ -69,3 +69,4 @@ reports/*.csv
 
 # Jupyter
 .ipynb_checkpoints/
+reports/ci/

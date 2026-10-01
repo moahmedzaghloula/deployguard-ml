@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM python:3.13-slim AS builder
+FROM python:3.13.15-slim-bookworm AS builder
 
 ENV VIRTUAL_ENV=/opt/venv
 ENV PATH="/opt/venv/bin:${PATH}"
@@ -11,10 +11,11 @@ COPY requirements-runtime.lock.txt /tmp/requirements-runtime.lock.txt
 
 RUN python -m pip install \
     --no-cache-dir \
-    --requirement /tmp/requirements-runtime.lock.txt
+    --requirement /tmp/requirements-runtime.lock.txt \
+    && python -m pip uninstall --yes pip setuptools wheel
 
 
-FROM python:3.13-slim AS runtime
+FROM python:3.13.15-slim-bookworm AS runtime
 
 ARG VCS_REF=unknown
 ARG BUILD_DATE=unknown
@@ -41,7 +42,8 @@ RUN groupadd \
         --no-create-home \
         --home-dir /nonexistent \
         --shell /usr/sbin/nologin \
-        deployguard
+        deployguard \
+    && /usr/local/bin/python -m pip uninstall --yes pip setuptools wheel
 
 COPY --from=builder \
     /opt/venv \

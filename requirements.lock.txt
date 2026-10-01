@@ -10,7 +10,7 @@ cloudpickle==3.1.2
 contourpy==1.4.0
 coverage==7.16.2
 cycler==0.12.1
-fonttools==4.66.0
+fonttools==4.66.1
 gunicorn==26.2.0
 iniconfig==2.3.0
 itsdangerous==2.2.0
@@ -24,7 +24,7 @@ packaging==26.3
 pandas==3.0.6
 pathspec==1.1.1
 pillow==12.3.0
-platformdirs==4.12.1
+platformdirs==4.12.2
 pluggy==1.6.0
 pyparsing==3.3.3
 pytest-cov==7.1.0
