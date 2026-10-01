@@ -271,37 +271,54 @@ jobs:
             --cpus 1.0 \
             "${IMAGE_NAME}:${IMAGE_TAG}"
 
+          status="starting"
+
           for attempt in $(seq 1 30); do
             status="$(
               docker inspect \
                 --format '{{.State.Health.Status}}' \
                 "${CONTAINER}"
-                echo "Health check attempt ${attempt}: ${status}"
             )"
+
+            echo "Health check attempt ${attempt}: ${status}"
 
             if [ "${status}" = "healthy" ]; then
               break
             fi
 
+            if [ "${status}" = "unhealthy" ]; then
+              echo "Container became unhealthy."
+              docker logs "${CONTAINER}"
+              exit 1
+            fi
+
             sleep 1
           done
 
-          test "$(
-            docker inspect \
-              --format '{{.State.Health.Status}}' \
-              "${CONTAINER}"
-              echo "Health check attempt ${attempt}: ${status}"
-          )" = "healthy"
+          if [ "${status}" != "healthy" ]; then
+            echo "Container did not become healthy."
+            docker logs "${CONTAINER}"
+            exit 1
+          fi
 
-          curl --fail --silent --show-error \
+          curl \
+            --fail \
+            --silent \
+            --show-error \
             http://127.0.0.1:8000/health \
             >/dev/null
 
-          curl --fail --silent --show-error \
+          curl \
+            --fail \
+            --silent \
+            --show-error \
             http://127.0.0.1:8000/ready \
             >/dev/null
 
-          curl --fail --silent --show-error \
+          curl \
+            --fail \
+            --silent \
+            --show-error \
             --request POST \
             --header 'Content-Type: application/json' \
             --data '{"files_changed":32,"lines_added":850,"lines_deleted":180,"test_coverage_percent":71.5,"failed_tests":2,"previous_deployment_failures":1,"deployment_hour":22,"is_weekend":1,"team_experience_months":18}' \
@@ -340,6 +357,7 @@ jobs:
             exit 1
           fi
 
+          echo "Hardened container smoke test: PASS"
   vulnerability-scan:
     name: Container vulnerability scan
     runs-on: ubuntu-24.04
