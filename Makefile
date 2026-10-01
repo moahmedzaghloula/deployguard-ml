@@ -5,7 +5,7 @@ RUFF := .venv/bin/ruff
 PYTEST := .venv/bin/pytest
 PYTHONPATH := src
 
-.PHONY: help venv install-dev format format-check lint test check data validate-data eda data-pipeline
+.PHONY: help venv install-dev format format-check lint test check data validate-data eda data-pipeline train evaluate model-check
 
 help:
 	@printf "Available targets:\n"
@@ -20,6 +20,9 @@ help:
 	@printf "  validate-data Validate the generated dataset contract\n"
 	@printf "  eda           Run EDA and save figures\n"
 	@printf "  data-pipeline Generate, validate, and analyze the dataset\n"
+	@printf "  train         Train, select, and save the model\n"
+	@printf "  evaluate      Show the saved final evaluation\n"
+	@printf "  model-check   Validate model artifacts and lineage\n"
 
 venv:
 	test -d .venv || python3 -m venv .venv
@@ -51,3 +54,13 @@ eda:
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m deployguard.eda
 
 data-pipeline: data validate-data eda
+
+train: validate-data
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m deployguard.train train
+
+evaluate:
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m deployguard.train evaluate
+
+model-check: validate-data
+	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m deployguard.train check
+
