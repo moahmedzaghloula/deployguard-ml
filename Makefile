@@ -64,3 +64,32 @@ evaluate:
 model-check: validate-data
 	PYTHONPATH=$(PYTHONPATH) $(PYTHON) -m deployguard.train check
 
+
+IMAGE ?= deployguard-ml:1.0.0
+CONTAINER ?= deployguard-api
+PORT ?= 8000
+VCS_REF := $(shell git rev-parse --short=12 HEAD)
+BUILD_DATE := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+
+.PHONY: api docker-build docker-run docker-smoke docker-inspect
+
+api: model-check
+	PYTHONPATH=$(PYTHONPATH) .venv/bin/gunicorn --workers 2 --bind 127.0.0.1:8000 --access-logfile - --error-logfile - --worker-tmp-dir /tmp --timeout 30 --graceful-timeout 30 --keep-alive 5 --preload 'deployguard.app:create_app()'
+
+docker-build: model-check
+	docker build --pull --build-arg VCS_REF="$(VCS_REF)" --build-arg BUILD_DATE="$(BUILD_DATE)" --tag "$(IMAGE)" .
+
+docker-run:
+	docker image inspect "$(IMAGE)" >/dev/null
+	docker run --detach --name "$(CONTAINER)" --publish "127.0.0.1:$(PORT):8000" --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m --cap-drop ALL --security-opt no-new-privileges=true --memory 512m --cpus 1.0 "$(IMAGE)"
+
+docker-smoke:
+	test "$$(docker inspect --format '{{.State.Health.Status}}' "$(CONTAINER)")" = "healthy"
+	curl --fail --silent --show-error "http://127.0.0.1:$(PORT)/health" >/dev/null
+	curl --fail --silent --show-error "http://127.0.0.1:$(PORT)/ready" >/dev/null
+	curl --fail --silent --show-error --request POST --header 'Content-Type: application/json' --data '{"files_changed":32,"lines_added":850,"lines_deleted":180,"test_coverage_percent":71.5,"failed_tests":2,"previous_deployment_failures":1,"deployment_hour":22,"is_weekend":1,"team_experience_months":18}' "http://127.0.0.1:$(PORT)/predict" >/dev/null
+	@printf "Docker smoke test: PASS\n"
+
+docker-inspect:
+	@docker image inspect "$(IMAGE)" --format 'Image={{.Id}} User={{.Config.User}}'
+	@docker inspect "$(CONTAINER)" --format 'Health={{.State.Health.Status}} ReadOnly={{.HostConfig.ReadonlyRootfs}} CapDrop={{json .HostConfig.CapDrop}} SecurityOpt={{json .HostConfig.SecurityOpt}} Memory={{.HostConfig.Memory}} NanoCpus={{.HostConfig.NanoCpus}}'

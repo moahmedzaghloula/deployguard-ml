@@ -1,25 +1,13 @@
-.git
-.github
-.venv
-__pycache__
-*.py[cod]
+**
 
-.pytest_cache
-.ruff_cache
-.mypy_cache
+!Dockerfile
+!.dockerignore
+!requirements-runtime.lock.txt
 
-.coverage
-htmlcov
+!src
+!src/deployguard
+!src/deployguard/**
 
-tests
-
-data/raw
-data/processed
-reports/figures
-
-.env
-.env.*
-*.pem
-*.key
-
-*.log
+!artifacts
+!artifacts/deployguard_model.joblib
+!artifacts/metadata.json
