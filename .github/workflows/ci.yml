@@ -264,6 +264,7 @@ jobs:
               docker inspect \
                 --format '{{.State.Health.Status}}' \
                 "${CONTAINER}"
+                echo "Health check attempt ${attempt}: ${status}"
             )"
 
             if [ "${status}" = "healthy" ]; then
@@ -277,6 +278,7 @@ jobs:
             docker inspect \
               --format '{{.State.Health.Status}}' \
               "${CONTAINER}"
+              echo "Health check attempt ${attempt}: ${status}"
           )" = "healthy"
 
           curl --fail --silent --show-error \
@@ -352,7 +354,6 @@ jobs:
           exit-code: "0"
           vuln-type: os,library
           severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
-          scanners: vuln
           scanners: vuln
 
       - name: Enforce high-severity vulnerability gate
